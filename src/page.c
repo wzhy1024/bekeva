@@ -29,44 +29,77 @@ int retrieveKey(char *pageBuf, int i, void *copyHere) {
 }
 
 int pageSerialize(page_t *page, char *buf, int pageSize) {
-    size_t needSpace = 2 * sizeof(size_t) + sizeof(PageType) + sizeof(int) + sizeof(int) * page->keyNum +
-                       sizeof(size_t) * (page->keyNum + 1);
+    int keyNum = 0;
+    memcpy(&keyNum, page->keyNum.content, page->keyNum.length);
+    size_t needSpace = page->id.length + page->type.length + page->keyNum.length + page->parent.length +
+                       sizeof(unsigned short) * (5 + 2 * keyNum);
+    for (int i = 1; i <= keyNum; ++i) {
+        needSpace += page->key[i].length;
+    }
+    for (int i = 0; i <= keyNum; ++i) {
+        needSpace += page->son[i].length;
+    }
     if (needSpace > pageSize) return 0;
-    int slotNum = 5 + 2 * page->keyNum;
-    slot_t *slot = (slot_t *) malloc(slotNum * sizeof(slot_t));
-    makeSlot(slot + 0, &page->id, sizeof(size_t));
-    makeSlot(slot + 1, &page->type, sizeof(PageType));
-    makeSlot(slot + 2, &page->keyNum, sizeof(int));
-    makeSlot(slot + 3, &page->parent, sizeof(size_t));
-    for (int i = 1; i <= page->keyNum; ++i) {
-        int t = 3 + 2 * i;
-        makeSlot(slot + t, page->key + i, sizeof(int));
-    }
-    for (int i = 0; i <= page->keyNum; ++i) {
-        int t = 4 + 2 * i;
-        makeSlot(slot + t, page->son + i, sizeof(size_t));
-    }
     int offset = 0;
-    for (int i = 0; i < slotNum; ++i) {
-        slot_t *p = slot + i;
-        offset += slotSerialize(p, buf, offset);
+    offset += slotSerialize(&page->id, buf, offset);
+    offset += slotSerialize(&page->type, buf, offset);
+    offset += slotSerialize(&page->keyNum, buf, offset);
+    offset += slotSerialize(&page->parent, buf, offset);
+    offset += slotSerialize(page->son + 0, buf, offset);
+    for (int i = 1; i <= keyNum; ++i) {
+        offset += slotSerialize(page->key + i, buf, offset);
+        offset += slotSerialize(page->son + i, buf, offset);
     }
-    free(slot);
+    // assert needSpace == offset
     return offset;
 }
 
 int pageDeserialize(char *buf, int pageSize, page_t *page) {
-    retrieveId(buf, &page->id);
-    retrieveType(buf, &page->type);
-    retrieveKeyNum(buf, &page->keyNum);
-    retrieveParent(buf, &page->parent);
-    page->key = (int *) malloc((page->keyNum + 1) * sizeof(int));
-    page->son = (size_t *) malloc((page->keyNum + 1) * sizeof(size_t));
-    for (int i = 1; i <= page->keyNum; ++i) {
-        retrieveKey(buf, i, page->key + i);
+    int offset = 0;
+    int sizeOfUnsignedShort = sizeof(unsigned short);
+
+    memcpy(&page->id.length, buf, sizeOfUnsignedShort);
+    offset += sizeOfUnsignedShort;
+    page->id.content = buf + offset;
+    offset += page->id.length;
+
+    memcpy(&page->type.length, buf + offset, sizeOfUnsignedShort);
+    offset += sizeOfUnsignedShort;
+    page->type.content = buf + offset;
+    offset += page->type.length;
+
+    memcpy(&page->keyNum.length, buf + offset, sizeOfUnsignedShort);
+    offset += sizeOfUnsignedShort;
+    page->keyNum.content = buf + offset;
+    offset += page->keyNum.length;
+
+    memcpy(&page->parent.length, buf + offset, sizeOfUnsignedShort);
+    offset += sizeOfUnsignedShort;
+    page->parent.content = buf + offset;
+    offset += page->parent.length;
+
+    int keyNum = 0;
+    memcpy(&keyNum, page->keyNum.content, page->keyNum.length);
+    page->key = (slot_t *) malloc((keyNum + 1) * sizeof(slot_t));
+    page->son = (slot_t *) malloc((keyNum + 1) * sizeof(slot_t));
+
+    memcpy(&page->son[0].length, buf + offset, sizeOfUnsignedShort);
+    offset += sizeOfUnsignedShort;
+    page->son[0].content = buf + offset;
+    offset += page->son[0].length;
+
+    for (int i = 1; i <= keyNum; ++i) {
+        memcpy(&page->key[i].length, buf + offset, sizeOfUnsignedShort);
+        offset += sizeOfUnsignedShort;
+        page->key[i].content = buf + offset;
+        offset += page->key[i].length;
+
+        memcpy(&page->son[i].length, buf + offset, sizeOfUnsignedShort);
+        offset += sizeOfUnsignedShort;
+        page->son[i].content = buf + offset;
+        offset += page->son[i].length;
     }
-    for (int i = 0; i <= page->keyNum; ++i) {
-        retrieveSon(buf, i, page->son + i);
-    }
+
     return 1;   //
 }
+

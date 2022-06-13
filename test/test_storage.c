@@ -2,50 +2,47 @@
 // Created by wzhy on 2022/6/12.
 //
 #include "storage.h"
+
 int test_storage() {
-    int a1[] = {0, 7};
-    size_t s1[] = {1, 10};
-    page_t page1 = {
-            .id = 0,
-            .type = ROOT,
-            .keyNum = 1,
-            .parent = 1,
-            .key = a1,
-            .son = s1
+    size_t id = 0;
+    PageType type = ROOT;
+    int keyNum = 2;
+    size_t parent = 1;
+    char key[3][100] = {
+            "PlaceHold",
+            "IamKey 1",
+            "IamKey 22",
+    };
+    size_t son[3] = {1, 10, 100};
+    slot_t keySlots[3] = {
+            {.length=4, .content = 0},
+            {.length=8, .content = key + 1},
+            {.length=9, .content = key + 2},
+    };
+    slot_t sonSlots[3] = {
+            {.length=sizeof(size_t), .content=son},
+            {.length=sizeof(size_t), .content=son + 1},
+            {.length=sizeof(size_t), .content=son + 2},
+    };
+    page_t page = {
+            .id = {.length = sizeof(size_t), .content = &id},
+            .type = {.length = sizeof(PageType), .content = &type},
+            .keyNum = {.length = sizeof(int), .content = &keyNum},
+            .parent = {.length = sizeof(size_t), .content = &parent},
+            .key = keySlots,
+            .son = sonSlots
     };
 
-    int a2[] = {0, 45, 60};
-    size_t s2[] = {1, 50, 999};
-    page_t page2 = {
-            .id = 1,
-            .type = LEAF,
-            .keyNum = 2,
-            .parent = 666,
-            .key = a2,
-            .son = s2
-    };
+    char buf[PAGE_SIZE] = {0};
+    pageSerialize(&page, buf, PAGE_SIZE);
+    writePage(0, buf, PAGE_SIZE);
 
     char buf1[PAGE_SIZE] = {0};
-    char buf2[PAGE_SIZE] = {0};
+    readPage(0, buf1, PAGE_SIZE);
+    page_t recover;
+    pageDeserialize(buf1, PAGE_SIZE, &recover);
 
-    pageSerialize(&page1, buf1, PAGE_SIZE);
-    pageSerialize(&page2, buf2, PAGE_SIZE);
+    printf("%d\n", equalsPage(&page, &recover));
 
-    writePage(0, buf1, PAGE_SIZE);
-    writePage(1, buf2, PAGE_SIZE);
-
-    char buf11[PAGE_SIZE] = {0};
-    char buf22[PAGE_SIZE] = {0};
-
-    readPage(0, buf11, PAGE_SIZE);
-    readPage(1, buf22, PAGE_SIZE);
-
-    page_t recover1;
-    page_t recover2;
-
-    pageDeserialize(buf11, PAGE_SIZE, &recover1);
-    pageDeserialize(buf22, PAGE_SIZE, &recover2);
-
-    printf("%d %d\n", equalsPage(&page1, &recover1), equalsPage(&page2, &recover2));
     return 1;
 }

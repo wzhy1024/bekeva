@@ -67,7 +67,8 @@ void test(int times) {
 }
 
 int main() {
-    openFile("D:/tmp/a.txt");
+    openFile("D:/tmp/ff.txt");
     test_storage();
+
     return 0;
 }
