@@ -7,6 +7,7 @@
 
 #include "slot.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 /**
  *                                         Page Layout
@@ -36,12 +37,12 @@ typedef enum {
 } PageType;
 
 typedef struct {
-    size_t id;
-    PageType type;
-    int keyNum;
-    size_t parent;
-    int *key;
-    size_t *son;
+    slot_t id;
+    slot_t type;
+    slot_t keyNum;
+    slot_t parent;
+    slot_t *key;
+    slot_t *son;
 } page_t;
 
 int pageSerialize(page_t *page, char *buf, int pageSize);
